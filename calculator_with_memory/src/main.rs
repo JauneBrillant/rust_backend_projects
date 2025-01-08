@@ -1,81 +1,36 @@
-use std::collections::HashMap;
+use calculator_with_memory::memory::Memory;
+use calculator_with_memory::token::Token;
 use std::io::{self, BufRead};
 
-struct Memory {
-    slots: HashMap<String, f64>,
-}
-
-impl Memory {
-    fn new() -> Self {
-        Self {
-            slots: HashMap::new(),
-        }
-    }
-
-    fn get(&self, key: &str) -> Option<f64> {
-        self.slots.get(key).copied()
-    }
-
-    fn update(&mut self, mem_name: String, value: f64) {
-        self.slots
-            .entry(mem_name)
-            .and_modify(|v| *v += value)
-            .or_insert(value);
+fn eval_token(token: &Token, memory: &Memory) -> Result<f64, String> {
+    match token {
+        Token::Number(val) => Ok(*val),
+        Token::MemoryRef(name) => memory.get(name),
+        _ => Err(format!("Failed eval_token")),
     }
 }
 
-// or_else
-// None, Errの時に代替の処理を行いたい時に使う
-
-// ok_or_else
-// OptionをResultに変換するときに、Noneに対応するエラー値を生成したい時に使う
-fn eval_token(token: &str, memory: &Memory) -> Result<f64, String> {
-    memory
-        .get(token)
-        .or_else(|| token.parse().ok())
-        .ok_or_else(|| format!("Failed to parse token: {}", token))
-}
-
-fn eval_expression(tokens: &[&str], memory: &Memory) -> Result<f64, String> {
+fn eval_expression(tokens: &[Token], memory: &Memory) -> Result<f64, String> {
     if tokens.len() != 3 {
         return Err("Invalid expression format, Expected: <lhs> <operator> <rhs>".to_string());
     }
 
-    let lhs = eval_token(tokens[0], memory)?;
-    let rhs = eval_token(tokens[2], memory)?;
+    let lhs = eval_token(&tokens[0], memory)?;
+    let rhs = eval_token(&tokens[2], memory)?;
     let result = match tokens[1] {
-        "+" => lhs + rhs,
-        "-" => lhs - rhs,
-        "*" => lhs * rhs,
-        "/" => {
+        Token::Plus => lhs + rhs,
+        Token::Minus => lhs - rhs,
+        Token::Asterisk => lhs * rhs,
+        Token::Slash => {
             if rhs == 0.0 {
                 return Err("Division by zero".to_string());
             }
             lhs / rhs
         }
-        _ => return Err(format!("Invalid operator: {}", tokens[1])),
+        _ => return Err(format!("Invalid operator: {:?}", tokens[1])),
     };
 
     Ok(result)
-}
-
-fn process_memory_command(line: &str, prev_result: f64, memory: &mut Memory) -> Result<(), String> {
-    let is_addition = line.ends_with("+");
-    let is_subtraction = line.ends_with("-");
-    let memory_name = line[3..line.len() - 1].trim().to_string();
-
-    if is_addition || is_subtraction {
-        let val = if is_addition {
-            prev_result
-        } else {
-            -prev_result
-        };
-        memory.update(memory_name.clone(), val);
-        println!(" => {}", memory.get(&memory_name).unwrap_or(0.0));
-        Ok(())
-    } else {
-        Err("Invalid memory operation. Use 'mem<name>+' or 'mem<name>-'.".to_string())
-    }
 }
 
 fn main() {
@@ -88,14 +43,33 @@ fn main() {
             break;
         }
 
-        if line.starts_with("mem") {
-            if let Err(e) = process_memory_command(&line, prev_result, &mut memory) {
-                eprintln!("Error: {}", e);
+        let tokens: Vec<Token> = match line
+            .split_whitespace()
+            .map(|word| Token::parse(word, &memory.slots))
+            .collect::<Result<Vec<_>, _>>()
+        {
+            Ok(toks) => toks,
+            Err(e) => {
+                eprintln!("Error parsing tokens: {}", e);
+                break;
+            }
+        };
+
+        if tokens.len() == 1 {
+            match &tokens[0] {
+                Token::MemoryPlus(name) => {
+                    memory.update(name.clone(), prev_result);
+                    println!(" => {:?}", memory.get(name).unwrap());
+                }
+                Token::MemoryMinus(name) => {
+                    memory.update(name.clone(), -prev_result);
+                    println!(" => {:?}", memory.get(name).unwrap());
+                }
+                _ => unreachable!(),
             }
             continue;
         }
 
-        let tokens: Vec<&str> = line.split_whitespace().collect();
         match eval_expression(&tokens, &memory) {
             Ok(result) => {
                 println!(" => {}", result);
