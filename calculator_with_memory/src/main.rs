@@ -6,7 +6,7 @@ fn eval_token(token: &Token, memory: &Memory) -> Result<f64, String> {
     match token {
         Token::Number(val) => Ok(*val),
         Token::MemoryRef(name) => memory.get(name),
-        _ => Err(format!("Failed eval_token")),
+        _ => Err("Failed eval_token".to_string()),
     }
 }
 
