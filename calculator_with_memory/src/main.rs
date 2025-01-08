@@ -11,26 +11,55 @@ fn eval_token(token: &Token, memory: &Memory) -> Result<f64, String> {
 }
 
 fn eval_expression(tokens: &[Token], memory: &Memory) -> Result<f64, String> {
-    if tokens.len() != 3 {
-        return Err("Invalid expression format, Expected: <lhs> <operator> <rhs>".to_string());
-    }
+    eval_additive_expression(tokens, memory)
+}
 
-    let lhs = eval_token(&tokens[0], memory)?;
-    let rhs = eval_token(&tokens[2], memory)?;
-    let result = match tokens[1] {
-        Token::Plus => lhs + rhs,
-        Token::Minus => lhs - rhs,
-        Token::Asterisk => lhs * rhs,
-        Token::Slash => {
-            if rhs == 0.0 {
-                return Err("Division by zero".to_string());
+fn eval_additive_expression(tokens: &[Token], memory: &Memory) -> Result<f64, String> {
+    let (mut result, mut index) = eval_multiplicative_expression(tokens, 0, memory);
+
+    while index < tokens.len() {
+        match &tokens[index] {
+            Token::Plus => {
+                let (value, next) = eval_multiplicative_expression(tokens, index + 1, memory);
+                result += value;
+                index = next;
             }
-            lhs / rhs
+            Token::Minus => {
+                let (value, next) = eval_multiplicative_expression(tokens, index + 1, memory);
+                result -= value;
+                index = next;
+            }
+            _ => break,
         }
-        _ => return Err(format!("Invalid operator: {:?}", tokens[1])),
+    }
+    Ok(result)
+}
+
+fn eval_multiplicative_expression(tokens: &[Token], index: usize, memory: &Memory) -> (f64, usize) {
+    let mut index = index;
+    let mut result = match eval_token(&tokens[index], memory) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return (0.0, index);
+        }
     };
 
-    Ok(result)
+    index += 1;
+    while index < tokens.len() {
+        match &tokens[index] {
+            Token::Asterisk => {
+                result *= eval_token(&tokens[index + 1], memory).unwrap();
+                index += 2;
+            }
+            Token::Slash => {
+                result /= eval_token(&tokens[index + 1], memory).unwrap();
+                index += 2;
+            }
+            _ => break,
+        }
+    }
+    (result, index)
 }
 
 fn main() {
