@@ -4,6 +4,12 @@ pub struct Memory {
     pub slots: HashMap<String, f64>,
 }
 
+impl Default for Memory {
+    fn default() -> Self {
+        Memory::new()
+    }
+}
+
 impl Memory {
     pub fn new() -> Self {
         Self {
