@@ -10,6 +10,8 @@ pub enum Token {
     Minus,
     Asterisk,
     Slash,
+    LParen,
+    RParen,
 }
 
 impl Token {
@@ -36,6 +38,8 @@ impl Token {
             "-" => Ok(Token::Minus),
             "*" => Ok(Token::Asterisk),
             "/" => Ok(Token::Slash),
+            "(" => Ok(Token::LParen),
+            ")" => Ok(Token::RParen),
             _ => Err(format!("Unknow token: {}", input)),
         }
     }
