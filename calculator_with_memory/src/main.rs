@@ -15,17 +15,17 @@ fn eval_expression(tokens: &[Token], memory: &Memory) -> Result<f64, String> {
 }
 
 fn eval_additive_expression(tokens: &[Token], memory: &Memory) -> Result<f64, String> {
-    let (mut result, mut index) = eval_multiplicative_expression(tokens, 0, memory);
+    let (mut result, mut index) = eval_multiplicative_expression(tokens, 0, memory)?;
 
     while index < tokens.len() {
         match &tokens[index] {
             Token::Plus => {
-                let (value, next) = eval_multiplicative_expression(tokens, index + 1, memory);
+                let (value, next) = eval_multiplicative_expression(tokens, index + 1, memory)?;
                 result += value;
                 index = next;
             }
             Token::Minus => {
-                let (value, next) = eval_multiplicative_expression(tokens, index + 1, memory);
+                let (value, next) = eval_multiplicative_expression(tokens, index + 1, memory)?;
                 result -= value;
                 index = next;
             }
@@ -35,21 +35,19 @@ fn eval_additive_expression(tokens: &[Token], memory: &Memory) -> Result<f64, St
     Ok(result)
 }
 
-fn eval_multiplicative_expression(tokens: &[Token], index: usize, memory: &Memory) -> (f64, usize) {
+fn eval_multiplicative_expression(
+    tokens: &[Token],
+    index: usize,
+    memory: &Memory,
+) -> Result<(f64, usize), String> {
     let mut index = index;
-    let mut result = match eval_token(&tokens[index], memory) {
-        Ok(val) => val,
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            return (0.0, index);
-        }
-    };
+    let mut result = eval_token(&tokens[index], memory)?;
 
     index += 1;
     while index < tokens.len() {
         match &tokens[index] {
             Token::Asterisk => {
-                result *= eval_token(&tokens[index + 1], memory).unwrap();
+                result *= eval_token(&tokens[index + 1], memory)?;
                 index += 2;
             }
             Token::Slash => {
@@ -59,7 +57,7 @@ fn eval_multiplicative_expression(tokens: &[Token], index: usize, memory: &Memor
             _ => break,
         }
     }
-    (result, index)
+    Ok((result, index))
 }
 
 fn main() {
